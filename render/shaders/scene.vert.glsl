@@ -34,7 +34,7 @@ void main() {
     float aspect = max(pc.meta.y, 0.001);
 
     vec2 worldScale = vec2(0.10 / aspect, 0.10);
-    vec2 center = vec2(body.x, body.y - 4.0) * worldScale;
+    vec2 center = vec2(body.x, 4.0 - body.y) * worldScale;
     vec2 radius = vec2(body.z) * worldScale;
 
     gl_Position = vec4(center + local * radius, 0.0, 1.0);

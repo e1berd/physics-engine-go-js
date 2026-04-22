@@ -271,7 +271,7 @@ void main() {
     vec3 forward = normalize(cameraTarget - cameraPos);
     vec3 right = normalize(cross(forward, vec3(0.0, 1.0, 0.0)));
     vec3 up = cross(right, forward);
-    vec3 rayDir = normalize(forward + uv.x * right + uv.y * up);
+    vec3 rayDir = normalize(forward + uv.x * right - uv.y * up);
 
     float t = 0.0;
     int materialId = -1;
