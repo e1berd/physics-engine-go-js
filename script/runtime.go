@@ -87,21 +87,130 @@ func (r *Runtime) registerGlobals(global *v8go.ObjectTemplate) error {
 
 func (r *Runtime) bootstrapRuntime() error {
 	source := `
+
+	// ── Value types ──────────────────────────────────────────────────────────────
+
+class Point {
+  constructor(x = 0, y = 0, z = 0) { this.x = x; this.y = y; this.z = z; }
+}
+
+class Color {
+  constructor(r = 1, g = 1, b = 1) { this.r = r; this.g = g; this.b = b; }
+}
+
+// ── Scene objects ─────────────────────────────────────────────────────────────
+
+class Camera {
+  constructor() {
+    this._position = new Point(0, 5.6, 12);
+    this._target   = new Point(0, 1.5, 0);
+  }
+  position(p) { this._position = p; return this; }
+  target(p)   { this._target   = p; return this; }
+}
+
+class Plane {
+  constructor() { this._position = new Point(0, 0, 0); }
+  position(p) { this._position = p; return this; }
+}
+
+class DirectionalLight {
+  constructor(name = 'light') {
+    this._name      = name;
+    this._position  = new Point(0, 10, 0);
+    this._color     = new Color(1, 1, 1);
+    this._intensity = 1.0;
+  }
+  position(p)  { this._position  = p; return this; }
+  color(c)     { this._color     = c; return this; }
+  intensity(v) { this._intensity = v; return this; }
+}
+
+class RigidBody {
+  constructor(name = '') {
+    this._name        = name;
+    this._shape       = 'sphere';
+    this._position    = new Point();
+    this._velocity    = new Point();
+    this._mass        = 1.0;
+    this._radius      = 0.5;
+    this._restitution = 0.6;
+    this._id          = null;
+  }
+  shape(s)       { this._shape       = s; return this; }
+  position(p)    { this._position    = p; return this; }
+  velocity(v)    { this._velocity    = v; return this; }
+  mass(m)        { this._mass        = m; return this; }
+  radius(r)      { this._radius      = r; return this; }
+  restitution(e) { this._restitution = e; return this; }
+}
+
+class Scene {
+  constructor() {
+    this._objects = [];
+    this._gravity = new Point(0, -9.81, 0);
+  }
+  gravity(g) { this._gravity = g; return this; }
+  add(obj)   { this._objects.push(obj); return obj; }
+}
+
+// ── Engine ────────────────────────────────────────────────────────────────────
+
+
 const engine = {
   _start: null,
   _update: null,
   time: { frame: 0, deltaSeconds: 0, fixedDeltaSeconds: 0, elapsedSeconds: 0 },
-  onStart(fn) { this._start = fn; },
+  onStart(fn)  { this._start  = fn; },
   onUpdate(fn) { this._update = fn; },
   spawnBody(options) { return spawnBody(JSON.stringify(options ?? {})); },
-  applyForce(id, force) { return applyForce(id, JSON.stringify(force ?? {})); },
-  setGravity(value) { return setGravity(JSON.stringify(value ?? {})); },
-  addLight(options) { return addLight(JSON.stringify(options ?? {})); },
   spawnPlane(options) { return spawnPlane(JSON.stringify(options ?? {})); },
-  getBodies() { return JSON.parse(getBodiesJSON()); },
-  getRendererInfo() { return JSON.parse(getRendererInfoJSON()); }
+
+  setScene(scene) {
+    const g = scene._gravity;
+    setGravity(JSON.stringify({ x: g.x, y: g.y, z: g.z }));
+
+    for (const obj of scene._objects) {
+      if (obj instanceof Plane) {
+        spawnPlane(JSON.stringify({ y: obj._position.y }));
+
+      } else if (obj instanceof DirectionalLight) {
+        const p = obj._position, c = obj._color;
+        addLight(JSON.stringify({
+          name:      obj._name,
+          kind:      'directional',
+          position:  { x: p.x, y: p.y, z: p.z },
+          color:     { x: c.r, y: c.g, z: c.b },
+          intensity: obj._intensity,
+        }));
+
+      } else if (obj instanceof RigidBody) {
+        const pos = obj._position, vel = obj._velocity;
+        const id = spawnBody(JSON.stringify({
+          name:        obj._name,
+          shape:       obj._shape,
+          position:    { x: pos.x, y: pos.y, z: pos.z },
+          velocity:    { x: vel.x, y: vel.y, z: vel.z },
+          mass:        obj._mass,
+          radius:      obj._radius,
+          restitution: obj._restitution,
+        }));
+        obj._id = id;
+      }
+    }
+  },
+
+  applyForce(body, force) {
+    const id = (typeof body === 'number') ? body : body._id;
+    return applyForce(id, JSON.stringify({ x: force.x, y: force.y, z: force.z }));
+  },
+
+  getBodies()       { return JSON.parse(getBodiesJSON()); },
+  getRendererInfo() { return JSON.parse(getRendererInfoJSON()); },
 };
+
 globalThis.engine = engine;
+
 `
 
 	_, err := r.ctx.RunScript(source, "engine_bootstrap.js")

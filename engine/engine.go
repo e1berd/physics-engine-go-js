@@ -97,6 +97,7 @@ func (e *Engine) Run() error {
 
 		scene := render.SceneSnapshot{
 			Time:   snapshot,
+			PlaneY: e.world.GroundY(),
 			Bodies: e.world.Bodies(),
 			Lights: e.renderer.Lights(),
 		}
