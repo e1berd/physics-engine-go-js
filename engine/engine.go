@@ -19,11 +19,13 @@ type Config struct {
 }
 
 type Engine struct {
-	cfg      Config
-	time     *core.TimeState
-	world    *physics.World
-	renderer *render.VulkanRenderer
-	runtime  *script.Runtime
+	cfg              Config
+	time             *core.TimeState
+	world            *physics.World
+	renderer         *render.VulkanRenderer
+	runtime          *script.Runtime
+	stopCh           chan struct{}
+	restartRequested bool
 }
 
 func New(cfg Config) (*Engine, error) {
@@ -58,10 +60,30 @@ func New(cfg Config) (*Engine, error) {
 		world:    world,
 		renderer: renderer,
 		runtime:  rt,
+		stopCh:   make(chan struct{}),
 	}, nil
 }
 
+func (e *Engine) RequestRestart() {
+	e.restartRequested = true
+	e.RequestStop()
+}
+
+func (e *Engine) RequestStop() {
+	select {
+	case <-e.stopCh:
+	default:
+		close(e.stopCh)
+	}
+}
+
+func (e *Engine) WasRestartRequested() bool {
+	return e.restartRequested
+}
+
+
 func (e *Engine) Run() error {
+
 	contents, err := os.ReadFile(e.cfg.ScriptPath)
 	if err != nil {
 		return fmt.Errorf("read script %q: %w", e.cfg.ScriptPath, err)
@@ -84,7 +106,14 @@ func (e *Engine) Run() error {
 	for frame := 0; ; frame++ {
 		<-ticker.C
 
+		select {
+			case <-e.stopCh:
+				return nil
+			default:
+		}
+
 		now := time.Now()
+
 		e.time.Advance(now.Sub(lastTick))
 		lastTick = now
 

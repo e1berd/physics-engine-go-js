@@ -42,6 +42,7 @@ struct NativeRenderer {
     VkSemaphore render_finished;
     VkFence in_flight_fence;
     char device_name[VK_MAX_PHYSICAL_DEVICE_NAME_SIZE];
+    int needs_resize;
 };
 
 static void set_error(char* err, size_t err_cap, const char* message) {
@@ -561,6 +562,9 @@ static bool create_framebuffers(NativeRenderer* r, char* err, size_t err_cap) {
     return true;
 }
 
+static bool alloc_command_buffers(NativeRenderer* r, char* err, size_t err_cap);
+
+
 static bool create_command_pool_and_buffers(NativeRenderer* r, char* err, size_t err_cap) {
     VkCommandPoolCreateInfo pool_info = {0};
     pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -571,13 +575,46 @@ static bool create_command_pool_and_buffers(NativeRenderer* r, char* err, size_t
         set_error_vk(err, err_cap, "vkCreateCommandPool", result);
         return false;
     }
+    return alloc_command_buffers(r, err, err_cap);
+}
+static void destroy_swapchain_resources(NativeRenderer* r) {
+    if (r->command_buffers && r->command_pool != VK_NULL_HANDLE) {
+        vkFreeCommandBuffers(r->device, r->command_pool, r->swapchain_image_count, r->command_buffers);
+    }
+    free(r->command_buffers);
+    r->command_buffers = NULL;
+    if (r->framebuffers) {
+        for (uint32_t i = 0; i < r->swapchain_image_count; ++i) {
+            if (r->framebuffers[i] != VK_NULL_HANDLE)
+                vkDestroyFramebuffer(r->device, r->framebuffers[i], NULL);
+        }
+        free(r->framebuffers);
+        r->framebuffers = NULL;
+    }
+    if (r->image_views) {
+        for (uint32_t i = 0; i < r->swapchain_image_count; ++i) {
+            if (r->image_views[i] != VK_NULL_HANDLE)
+                vkDestroyImageView(r->device, r->image_views[i], NULL);
+        }
+        free(r->image_views);
+        r->image_views = NULL;
+    }
+    free(r->swapchain_images);
+    r->swapchain_images = NULL;
+    if (r->swapchain != VK_NULL_HANDLE) {
+        vkDestroySwapchainKHR(r->device, r->swapchain, NULL);
+        r->swapchain = VK_NULL_HANDLE;
+    }
+}
+static bool alloc_command_buffers(NativeRenderer* r, char* err, size_t err_cap) {
+    // r->command_buffers array is already allocated by create_swapchain
 
     VkCommandBufferAllocateInfo alloc_info = {0};
     alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     alloc_info.commandPool = r->command_pool;
     alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     alloc_info.commandBufferCount = r->swapchain_image_count;
-    result = vkAllocateCommandBuffers(r->device, &alloc_info, r->command_buffers);
+    VkResult result = vkAllocateCommandBuffers(r->device, &alloc_info, r->command_buffers);
     if (result != VK_SUCCESS) {
         set_error_vk(err, err_cap, "vkAllocateCommandBuffers", result);
         return false;
@@ -585,10 +622,28 @@ static bool create_command_pool_and_buffers(NativeRenderer* r, char* err, size_t
     return true;
 }
 
+static bool resize_swapchain(NativeRenderer* r, char* err, size_t err_cap) {
+    vkDeviceWaitIdle(r->device);
+    int w = 0, h = 0;
+    SDL_Vulkan_GetDrawableSize(r->window, &w, &h);
+    if (w == 0 || h == 0) {
+        r->needs_resize = 0;
+        return true;
+    }
+    destroy_swapchain_resources(r);
+    if (!create_swapchain(r, w, h, err, err_cap)) return false;
+    if (!create_image_views(r, err, err_cap)) return false;
+    if (!create_framebuffers(r, err, err_cap)) return false;
+    if (!alloc_command_buffers(r, err, err_cap)) return false;
+    r->needs_resize = 0;
+    return true;
+}
+
 static bool create_sync_objects(NativeRenderer* r, char* err, size_t err_cap) {
     VkSemaphoreCreateInfo sem_info = {0};
     sem_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
     VkFenceCreateInfo fence_info = {0};
+
     fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
@@ -657,7 +712,7 @@ NativeRenderer* renderer_create(const char* title, int width, int height, const 
         return NULL;
     }
 
-    r->window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_VULKAN | SDL_WINDOW_SHOWN);
+    r->window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_VULKAN | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
     if (!r->window) {
         set_error(err, err_cap, SDL_GetError());
         destroy_renderer_contents(r);
@@ -694,6 +749,10 @@ int renderer_should_close(NativeRenderer* r) {
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_QUIT) {
             return 1;
+        }
+        if (event.type == SDL_WINDOWEVENT &&
+            event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
+            r->needs_resize = 1;
         }
     }
     return 0;
@@ -765,7 +824,21 @@ int renderer_render(NativeRenderer* r, const float* bodies_xyri, int body_count,
     }
 
     uint32_t image_index = 0;
+    if (r->needs_resize) {
+        if (!resize_swapchain(r, err, err_cap)) {
+            return 0;
+        }
+        if (r->swapchain_extent.width == 0 || r->swapchain_extent.height == 0) {
+            return 1;
+        }
+    }
+
     result = vkAcquireNextImageKHR(r->device, r->swapchain, UINT64_MAX, r->image_available, VK_NULL_HANDLE, &image_index);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        r->needs_resize = 1;
+        vkResetFences(r->device, 1, &r->in_flight_fence);
+        return 1;
+    }
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
         set_error_vk(err, err_cap, "vkAcquireNextImageKHR", result);
         return 0;
@@ -818,7 +891,9 @@ int renderer_render(NativeRenderer* r, const float* bodies_xyri, int body_count,
     present_info.pImageIndices = &image_index;
 
     result = vkQueuePresentKHR(r->present_queue, &present_info);
-    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+        r->needs_resize = 1;
+    } else if (result != VK_SUCCESS) {
         set_error_vk(err, err_cap, "vkQueuePresentKHR", result);
         return 0;
     }
