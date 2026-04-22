@@ -33,16 +33,13 @@ func New(cfg Config) (*Engine, error) {
 	if cfg.TargetFrame <= 0 {
 		cfg.TargetFrame = cfg.FixedDelta
 	}
-	if cfg.MaxFrames <= 0 {
-		cfg.MaxFrames = 600
-	}
 
 	world := physics.NewWorld()
 	renderer, err := render.NewVulkanRenderer("Physics Engine Go")
 	if err != nil {
 		return nil, fmt.Errorf("create renderer: %w", err)
 	}
-	if cfg.MaxFrames == 0 && !renderer.IsInteractive() {
+	if cfg.MaxFrames <= 0 && !renderer.IsInteractive() {
 		cfg.MaxFrames = 300
 	}
 
@@ -100,7 +97,6 @@ func (e *Engine) Run() error {
 
 		scene := render.SceneSnapshot{
 			Time:   snapshot,
-			PlaneY: e.world.GroundY(),
 			Bodies: e.world.Bodies(),
 			Lights: e.renderer.Lights(),
 		}
