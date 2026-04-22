@@ -42,14 +42,14 @@ engine.onStart((time) => {
   ]
 
 
-  engine.setScene(scene);
-  log("scene ready");
+  engine.setScene(scene)
+  log("scene ready")
 })
 
 engine.onUpdate((time) => {
   if (time.frame < 150) {
-    engine.applyForce(figures[1], new Point(0.25, 0, 0));
-    engine.applyForce(figures[3], new Point(-0.2, 0, 0));
+    engine.applyForce(figures[1], new Point(0.25, 0, 0))
+    engine.applyForce(figures[3], new Point(-0.2, 0, 0))
   }
 
   if (time.frame % 120 === 0) {
