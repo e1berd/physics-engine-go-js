@@ -1,0 +1,4 @@
+github.com/vulkan-go/vulkan v0.0.0-20221209234627-c0a353ae26c8 h1:qPHDyQTLtn40kezY6y4UL7bH7Z0Im9wSu1tQtM2wbUU=
+github.com/vulkan-go/vulkan v0.0.0-20221209234627-c0a353ae26c8/go.mod h1:Y5Ti1uUBdKDsb0W8aPtIo9krs+29Y7p6Bc9yyy4AM6g=
+rogchap.com/v8go v0.9.0 h1:wYbUCO4h6fjTamziHrzyrPnpFNuzPpjZY+nfmZjNaew=
+rogchap.com/v8go v0.9.0/go.mod h1:MxgP3pL2MW4dpme/72QRs8sgNMmM0pRc8DPhcuLWPAs=
