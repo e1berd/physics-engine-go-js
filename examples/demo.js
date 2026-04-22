@@ -22,28 +22,28 @@ engine.onStart((time) => {
   scene.add(ground)
   boxBase = new Mesh(
     new BoxGeometry(0.72),
-    new MeshStandardMaterial({ mass: 2.2, restitution: 0.42 })
+    new MeshStandardMaterial({ mass: 2.2, restitution: 0.42, roughness: 0.8, metalness: 0.2, color: 0xff0000 })
   )
   boxBase.name = 'box-base'
   boxBase.position.set(-1.4, 1.0, 0.0)
   scene.add(boxBase)
   sphereTop = new Mesh(
     new SphereGeometry(0.52),
-    new MeshStandardMaterial({ mass: 1.1, restitution: 0.78 })
+    new MeshStandardMaterial({ mass: 1.1, restitution: 0.78, roughness: 0.3, metalness: 0.9, color: 0x00ff00 })
   )
   sphereTop.name = 'sphere-top'
   sphereTop.position.set(-1.1, 3.3, 0.0)
   scene.add(sphereTop)
   boxMid = new Mesh(
     new BoxGeometry(0.62),
-    new MeshStandardMaterial({ mass: 1.5, restitution: 0.50 })
+    new MeshStandardMaterial({ mass: 1.5, restitution: 0.50, roughness: 0.5, metalness: 0.0, color: 0x0000ff })
   )
   boxMid.name = 'box-mid'
   boxMid.position.set(1.3, 2.0, 0.0)
   scene.add(boxMid)
   sphereDrop = new Mesh(
     new SphereGeometry(0.5),
-    new MeshStandardMaterial({ mass: 1.0, restitution: 0.82 })
+    new MeshStandardMaterial({ mass: 1.0, restitution: 0.82, roughness: 0.1, metalness: 0.5, color: 0xffff00 })
   )
   sphereDrop.name = 'sphere-drop'
   sphereDrop.position.set(1.3, 5.2, 0.0)

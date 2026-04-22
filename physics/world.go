@@ -63,6 +63,15 @@ func (w *World) AddBody(body Body) int {
 	if body.Shape == "" {
 		body.Shape = "sphere"
 	}
+	if body.Roughness == 0 {
+		body.Roughness = 0.5
+	}
+	if body.Metalness == 0 {
+		body.Metalness = 0.0
+	}
+	if body.Color.X == 0 && body.Color.Y == 0 && body.Color.Z == 0 {
+		body.Color = Vec3{X: 1, Y: 1, Z: 1}
+	}
 
 	body.ID = w.nextID
 	w.nextID++
@@ -120,8 +129,9 @@ func (w *World) Step(dt float64) {
 			if body.Velocity.Y < 0 {
 				body.Velocity.Y = -body.Velocity.Y * body.Restitution
 			}
-			body.Velocity.X *= 0.94
-			body.Velocity.Z *= 0.94
+			frictionFactor := 1.0 - body.Roughness*0.2
+			body.Velocity.X *= frictionFactor
+			body.Velocity.Z *= frictionFactor
 			if math.Abs(body.Velocity.X) < 0.005 {
 				body.Velocity.X = 0
 			}

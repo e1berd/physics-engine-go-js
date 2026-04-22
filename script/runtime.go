@@ -178,6 +178,9 @@ func (r *Runtime) spawnBodyCallback(info *v8go.FunctionCallbackInfo) *v8go.Value
 		Mass        float64    `json:"mass"`
 		Radius      float64    `json:"radius"`
 		Restitution float64    `json:"restitution"`
+		Roughness   float64    `json:"roughness"`
+		Metalness   float64    `json:"metalness"`
+		Color       vectorJSON `json:"color"`
 		IsStatic    bool       `json:"isStatic"`
 	}
 	if err := json.Unmarshal([]byte(args[0].String()), &payload); err != nil {
@@ -193,6 +196,9 @@ func (r *Runtime) spawnBodyCallback(info *v8go.FunctionCallbackInfo) *v8go.Value
 		Mass:        payload.Mass,
 		Radius:      payload.Radius,
 		Restitution: payload.Restitution,
+		Roughness:   payload.Roughness,
+		Metalness:   payload.Metalness,
+		Color:       payload.Color.vec3(),
 		IsStatic:    payload.IsStatic,
 	})
 	return newIntValue(info.Context(), int32(id))

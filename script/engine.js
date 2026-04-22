@@ -11,7 +11,8 @@ class Euler {
 }
 class Color {
   constructor(r = 1, g = 1, b = 1) {
-    if (typeof r === 'number' && g === undefined) {
+    // Handle hex color: Color(0xff0000)
+    if (typeof r === 'number' && arguments.length === 1) {
       this.r = ((r >> 16) & 0xff) / 255;
       this.g = ((r >> 8) & 0xff) / 255;
       this.b = (r & 0xff) / 255;
@@ -132,6 +133,9 @@ const engine = {
             mass:        mat.mass,
             radius:      geom.radius,
             restitution: mat.restitution,
+            roughness:   mat.roughness,
+            metalness:   mat.metalness,
+            color:       { x: mat.color.r, y: mat.color.g, z: mat.color.b },
             isStatic:    obj._static,
           }));
           obj._id = id;

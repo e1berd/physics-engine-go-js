@@ -10,6 +10,9 @@ type Body struct {
 	Mass        float64
 	Radius      float64
 	Restitution float64
+	Roughness   float64
+	Metalness   float64
+	Color       Vec3
 	IsStatic    bool
 }
 
